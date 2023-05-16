@@ -2,21 +2,13 @@ import json
 import random
 
 from django.core.management.base import BaseCommand
-from products.models import Category, Product, Sku
+from products.models import Brand, Category, Product, Sku, Media
 
 class Command(BaseCommand):
     help = 'Populate data from JSON file'
 
     def add_arguments(self, parser):
         parser.add_argument('filename', type=str, help='The JSON file to read data from')
-
-    # def create_or_return_category(self, category_name):
-    #     try:
-    #         category = Category.objects.get(name=category_name)
-    #         return category
-
-    #     except Category.DoesNotExist:
-    #         return Category.objects.create(name=category_name)
 
     def handle(self, *args, **options):
         filename = options['filename']
@@ -25,31 +17,39 @@ class Command(BaseCommand):
         
         for product in data:
             parent_category_name = None
-
             for category_name in product['category']:
                 category_name = category_name.lower()
                 category, _ = Category.objects.get_or_create(name=category_name)
 
                 if parent_category_name and not category.parent:
                     category.parent, _ = Category.objects.get_or_create(name=parent_category_name)
-                    category.save()
+                    category.save(update_fields=['parent'])
                 
                 parent_category_name = category_name
-
+            
+            brand, _ = Brand.objects.get_or_create(name=product['brand'])
             category, _ = Category.objects.get_or_create(name=product['category'][-1])
             item = Product.objects.create(
-                retail_id = product['retailer_sku'],
-                gender = product['gender'],
-                brand = product['brand'],
-                market = product['market'],
-                name = product['name'],
-                description = product['description'],
-                care = ", ".join(product['care']),
-                image_urls = product['image_urls'],
+                brand = brand,
                 category = category,
+                name = product['name'],
+                market = product['market'],
+                gender = product['gender'],
+                care = ", ".join(product['care']),
+                retail_id = product['retailer_sku'],
+                description = product['description'],
             )
 
+            media_to_bulk_create = []
             skus_to_bulk_create = []
+            
+            for image_url in product['image_urls']:
+                image_data = {
+                    'image_url': image_url,
+                }
+                media = Media(product=item, **image_data)
+                media_to_bulk_create.append(media)
+
             for sku in product['skus'].values():
                 sku_data = {
                     'is_out_of_stock': sku.get('out_of_stock') or False,
@@ -62,5 +62,6 @@ class Command(BaseCommand):
                 skus_to_bulk_create.append(sku)
 
             Sku.objects.bulk_create(skus_to_bulk_create)
+            Media.objects.bulk_create(media_to_bulk_create)
 
         self.stdout.write(self.style.SUCCESS('Data successfully populated'))
