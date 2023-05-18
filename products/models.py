@@ -51,7 +51,7 @@ class Sku(TimestampMixin):
 
 class Media(TimestampMixin):
     image_url = models.URLField()
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='skus')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='media')
 
     def __str__(self):
         return self.image_url

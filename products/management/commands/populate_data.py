@@ -1,5 +1,4 @@
 import json
-import random
 
 from django.core.management.base import BaseCommand
 from products.models import Brand, Category, Product, Sku, Media
@@ -14,7 +13,7 @@ class Command(BaseCommand):
         filename = options['filename']
         with open(filename, 'r') as file:
             data = json.load(file)
-        
+
         for product in data:
             parent_category_name = None
             for category_name in product['category']:
@@ -24,10 +23,10 @@ class Command(BaseCommand):
                 if parent_category_name and not category.parent:
                     category.parent, _ = Category.objects.get_or_create(name=parent_category_name)
                     category.save(update_fields=['parent'])
-                
+
                 parent_category_name = category_name
-            
-            brand, _ = Brand.objects.get_or_create(name=product['brand'])
+
+            brand, _ = Brand.objects.get_or_create(name=product['brand'].lower())
             category, _ = Category.objects.get_or_create(name=product['category'][-1])
             item = Product.objects.create(
                 brand = brand,
